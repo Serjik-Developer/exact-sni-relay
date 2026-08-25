@@ -469,6 +469,10 @@ async def run(args: argparse.Namespace) -> None:
     routed_connections = (
         process_max_connections - pre_parse_connections - fallback_connections
     )
+    routed_connections_per_source = min(
+        routed_connections,
+        max(1, args.concurrency),
+    )
     temp_context = tempfile.TemporaryDirectory(prefix="exact-sni-relay-churn.")
     temp_dir = Path(temp_context.name)
     config_path = temp_dir / "router.json"
@@ -487,6 +491,7 @@ async def run(args: argparse.Namespace) -> None:
                 "admission": {
                     "pre_parse_max_connections": pre_parse_connections,
                     "routed_max_connections": routed_connections,
+                    "routed_max_connections_per_source": routed_connections_per_source,
                     "fallback_max_connections": fallback_connections,
                 },
                 "limits": {

@@ -1,0 +1,33 @@
+[Unit]
+Description=Exact TLS SNI passthrough relay
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=exact-sni-relay
+Group=exact-sni-relay
+ExecStart=/usr/local/bin/exact-sni-relay --config /etc/exact-sni-relay/config.json --max-connections 15000
+ExecReload=/bin/kill -HUP $MAINPID
+KillSignal=SIGTERM
+TimeoutStopSec=15s
+Restart=on-failure
+RestartSec=2s
+LimitNOFILE=262144
+
+# Required only when a route uses socket_marks. Linux 5.17+ accepts SO_MARK
+# with CAP_NET_RAW, so CAP_NET_ADMIN is intentionally not granted.
+AmbientCapabilities=CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_RAW
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

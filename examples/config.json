@@ -1,0 +1,26 @@
+{
+  "bind": "127.0.0.1:18443",
+  "allow_redirect_ingress_bind": false,
+  "health_bind": "127.0.0.1:19090",
+  "routes": {
+    "service.example.net": "127.0.0.1:15443"
+  },
+  "fallbacks": {
+    "unknown_sni": "127.0.0.1:14443",
+    "no_sni": "127.0.0.1:14443",
+    "plain_http": "127.0.0.1:18080"
+  },
+  "admission": {
+    "pre_parse_max_connections": 2048,
+    "routed_max_connections": 12000,
+    "routed_max_connections_per_source": 128,
+    "fallback_max_connections": 256
+  },
+  "limits": {
+    "client_hello_max_bytes": 65536,
+    "client_hello_timeout_ms": 3000,
+    "connect_timeout_ms": 3000,
+    "half_close_timeout_ms": 10000,
+    "fallback_lifetime_timeout_ms": 5000
+  }
+}

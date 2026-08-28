@@ -19,10 +19,12 @@ arc-swap = "1.7.1"
 clap = { version = "4.5.32", features = ["derive"] }
 libc = "0.2.171"
 prometheus = "0.13.4"
+rustls-pemfile = "2.2.0"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 thiserror = "2.0.12"
 tokio = { version = "1.44.1", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+tokio-rustls = "0.26.2"
 
 [dev-dependencies]
 tempfile = "3.19.0"

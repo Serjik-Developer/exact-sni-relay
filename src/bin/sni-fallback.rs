@@ -267,6 +267,17 @@ struct ProxySettings {
     backend_connect_deadline: Duration,
 }
 
+fn is_benign_relay_error(error: &io::Error) -> bool {
+    matches!(
+        error.kind(),
+        io::ErrorKind::BrokenPipe
+            | io::ErrorKind::ConnectionAborted
+            | io::ErrorKind::ConnectionReset
+            | io::ErrorKind::NotConnected
+            | io::ErrorKind::UnexpectedEof
+    )
+}
+
 #[derive(Debug, PartialEq, Eq)]
 enum HandshakeFailure {
     Protocol,
@@ -413,11 +424,14 @@ async fn proxy(
         }
     };
     let _ = upstream.set_nodelay(true);
-    if tokio::io::copy_bidirectional(&mut tls, &mut upstream)
-        .await
-        .is_err()
-    {
-        metrics.backend_errors.inc();
+    if let Err(error) = tokio::io::copy_bidirectional(&mut tls, &mut upstream).await {
+        // A TLS peer closing without close_notify after receiving the complete
+        // response is normal on the public Internet. Count only errors that
+        // indicate a real backend/relay fault; otherwise the counter becomes
+        // a client-disconnect counter and cannot drive a safe watchdog.
+        if !is_benign_relay_error(&error) {
+            metrics.backend_errors.inc();
+        }
     }
     // copy_bidirectional already shuts each writer down after that direction
     // reaches EOF. On an I/O error, dropping both owned streams is the only
@@ -734,6 +748,25 @@ mod tests {
         assert!(parse_timeout_ms("0").is_err());
         assert!(parse_timeout_ms("300001").is_err());
         assert!(parse_timeout_ms("later").is_err());
+    }
+
+    #[test]
+    fn expected_peer_disconnects_are_not_backend_failures() {
+        for kind in [
+            io::ErrorKind::BrokenPipe,
+            io::ErrorKind::ConnectionAborted,
+            io::ErrorKind::ConnectionReset,
+            io::ErrorKind::NotConnected,
+            io::ErrorKind::UnexpectedEof,
+        ] {
+            assert!(is_benign_relay_error(&io::Error::from(kind)));
+        }
+        assert!(!is_benign_relay_error(&io::Error::from(
+            io::ErrorKind::TimedOut
+        )));
+        assert!(!is_benign_relay_error(&io::Error::from(
+            io::ErrorKind::PermissionDenied
+        )));
     }
 
     #[test]

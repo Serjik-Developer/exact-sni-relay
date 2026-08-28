@@ -1,0 +1,18 @@
+[package]
+name = "sni-tls-loadgen"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+description = "Loopback-only full TLS handshake load generator for sni-fallback"
+
+[dependencies]
+rustls-pemfile = "2.2.0"
+tokio = { version = "1.44.1", features = ["io-util", "macros", "net", "rt-multi-thread", "time"] }
+tokio-rustls = "0.26.2"
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+panic = "abort"
+strip = "symbols"

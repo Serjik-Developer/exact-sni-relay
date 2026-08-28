@@ -199,6 +199,92 @@ python3 tests/churn.py \
 
 This is a lifecycle regression, not a throughput benchmark.
 
+### TLS fallback benchmark
+
+The fallback is the one path where a TLS terminator (currently HAProxy in
+production) may still be needed.  Before replacing it, compare a candidate
+locally with the supplied benchmark.  It generates a temporary self-signed
+certificate and loopback HTTP backend, so it never contacts production:
+
+```bash
+python3 tests/benchmark_tls_fallback.py \
+  --baseline-cmd 'haproxy -db -f {config}' \
+  --candidate-cmd 'my-fallback --listen 127.0.0.1:{listen_port} \
+    --backend 127.0.0.1:{backend_port} --cert {cert} --key {key}' \
+  --workers 64 --duration 30 --rounds 5 --json
+```
+
+Commands are split with `shlex` (no shell is invoked).  `{listen_port}`,
+`{backend_port}`, `{metrics_port}`, `{cert}`, `{key}`, `{config}`, and `{host}`
+are expanded per run. The report includes successful full TLS 1.2 handshakes
+per second, success rate, p50/p95 latency, process-tree CPU and peak RSS. A correctness
+request must return the deterministic `200 OK` fixture before load starts;
+failed requests are aggregated with bounded error examples.  For hosts
+without HAProxy, the fixture below can validate the harness itself:
+
+```bash
+python3 tests/benchmark_tls_fallback.py \
+  --baseline-cmd 'python3 tests/tls_fallback_fixture.py --listen {listen_port} --cert {cert} --key {key}' \
+  --candidate-cmd 'python3 tests/tls_fallback_fixture.py --listen {listen_port} --cert {cert} --key {key}'
+```
+
+This is a benchmark and correctness gate, not a production cutover.  Treat a
+candidate as ready only after it matches the fallback's required certificate,
+SNI, HTTP behavior, overload limits, and long-lived connection semantics on a
+staging host.
+
+Standalone fallback regression gates are also loopback-only:
+
+```bash
+python3 tests/fallback_churn.py \
+  --command 'target/release/sni-fallback \
+    --listen 127.0.0.1:{listen_port} \
+    --backend 127.0.0.1:{backend_port} \
+    --metrics 127.0.0.1:{metrics_port} \
+    --cert {cert} --key {key} --allowed-sni {host} \
+    --runtime-workers 4'
+
+python3 tests/reality_xray_smoke.py \
+  --candidate target/release/sni-fallback --xray /path/to/xray --json
+
+python3 tests/fallback_soak.py --duration 3600 \
+  --command 'target/release/sni-fallback \
+    --listen 127.0.0.1:{listen_port} \
+    --backend 127.0.0.1:{backend_port} \
+    --metrics 127.0.0.1:{metrics_port} \
+    --cert {cert} --key {key} --allowed-sni {host} \
+    --runtime-workers 4'
+```
+
+The churn gate mixes valid HTTPS, disconnects, incomplete TLS and foreign-SNI
+traffic and checks FD/RSS/CLOSE_WAIT cleanup. The Reality gate proves both the
+camouflage response and a bidirectional VLESS/Reality payload. The soak gate
+repeats the same mixed profile for a bounded duration and fails
+on request errors, FD/CLOSE_WAIT growth, or excessive settled RSS growth.
+
+For server-saturating comparisons, the loopback-only Rust generator avoids
+Python scheduling becoming the bottleneck. It performs verified full TLS 1.2
+handshakes with resumption disabled and reports server-process CPU separately
+from generator/backend CPU. See
+[tests/tls_loadgen/README.md](tests/tls_loadgen/README.md) for reproducible
+commands and [the staging result](docs/tls-fallback-benchmark-results.md) for
+the current development-host methodology and measurements.
+
+The companion TLS terminator is `sni-fallback`:
+
+```bash
+cargo build --release --locked --bin sni-fallback
+target/release/sni-fallback --check-config \
+  --listen 127.0.0.1:4443 --backend 127.0.0.1:80 \
+  --metrics 127.0.0.1:19091 --cert /etc/sni-fallback/tls.crt \
+  --key /etc/sni-fallback/tls.key --allowed-sni example.com
+```
+
+It is loopback-only, reloads a validated certificate/key pair on `SIGHUP`, and
+drains existing connections on `SIGTERM`; see
+[docs/sni-fallback.md](docs/sni-fallback.md). The release gate and rollback
+procedure are in [docs/production-gates.md](docs/production-gates.md).
+
 ## Comparison
 
 | Capability | Exact SNI Relay | HAProxy / general proxies | Typical small SNI routers |

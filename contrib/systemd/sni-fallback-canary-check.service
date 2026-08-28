@@ -1,0 +1,8 @@
+[Unit]
+Description=Validate the loopback TLS fallback canary
+After=network-online.target sni-fallback-canary.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/sni-fallback-canary-check
+TimeoutStartSec=15s

@@ -1,0 +1,12 @@
+[Unit]
+Description=Periodically validate the loopback TLS fallback canary
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=1min
+AccuracySec=5s
+Persistent=true
+Unit=sni-fallback-canary-check.service
+
+[Install]
+WantedBy=timers.target

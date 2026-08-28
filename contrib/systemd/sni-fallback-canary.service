@@ -1,0 +1,39 @@
+[Unit]
+Description=Exact SNI Relay loopback TLS fallback canary
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sni-fallback
+Group=sni-fallback
+ExecStart=/usr/local/bin/sni-fallback \
+  --listen 127.0.0.1:14443 \
+  --backend 127.0.0.1:80 \
+  --metrics 127.0.0.1:19091 \
+  --cert /etc/sni-fallback/tls.crt \
+  --key /etc/sni-fallback/tls.key \
+  --allowed-sni paruscamp.com \
+  --allow-subdomains \
+  --runtime-workers 2 \
+  --max-connections 4096 \
+  --handshake-timeout-ms 5000 \
+  --backend-connect-timeout-ms 1000 \
+  --drain-seconds 10
+ExecReload=/bin/kill -HUP $MAINPID
+KillSignal=SIGTERM
+TimeoutStopSec=15s
+Restart=on-failure
+RestartSec=2s
+LimitNOFILE=131072
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

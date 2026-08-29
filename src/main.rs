@@ -34,7 +34,11 @@ const TEST_EXCHANGE_BYTES: usize = 32;
 const MAX_DRAIN_TIME: Duration = Duration::from_secs(10);
 // A proxied connection owns two TCP sockets. Keep ample headroom below a
 // typical high LimitNOFILE and the configured scoped admission budget.
-const DEFAULT_MAX_CONCURRENT_CONNECTIONS: usize = 75_000;
+// A shared ingress can legitimately hold well over 75k mostly-idle Reality
+// sessions.  Keep the binary safety ceiling high enough for a guarded 150k
+// production admission budget; operators still select the actual budget via
+// the scoped config and --max-connections.
+const DEFAULT_MAX_CONCURRENT_CONNECTIONS: usize = 160_000;
 
 #[derive(Debug, Parser)]
 #[command(version, about)]

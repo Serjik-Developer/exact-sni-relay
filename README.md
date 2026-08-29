@@ -134,6 +134,11 @@ sets the listener backlog ceiling. It is not an additional fourth admission
 semaphore. Admission and bind-address changes require a restart; route-table
 changes can use `SIGHUP`.
 
+The binary accepts a process budget up to 160,000 connections.  This is a
+safety ceiling rather than a recommended default: size the scoped admission
+pools, file-descriptor limit, memory cgroup and conntrack table together, and
+roll out higher limits under admission-reject and resource monitoring.
+
 ### Routing behavior
 
 - Routes are exact, lowercase-normalized ASCII DNS hostnames.

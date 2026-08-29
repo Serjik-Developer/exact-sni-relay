@@ -11,7 +11,7 @@ use thiserror::Error;
 
 const MIN_HELLO_BYTES: usize = 4 * 1024;
 const MAX_HELLO_BYTES: usize = 256 * 1024;
-const MAX_ADMISSION_CONNECTIONS: usize = 75_000;
+const MAX_ADMISSION_CONNECTIONS: usize = 160_000;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -489,7 +489,7 @@ mod tests {
     fn rejects_admission_budget_above_binary_safety_ceiling() {
         let configured = VALID.replace(
             "\n      \"fallbacks\":{",
-            "\n      \"admission\":{\"pre_parse_max_connections\":25001,\"routed_max_connections\":25000,\"routed_max_connections_per_source\":128,\"fallback_max_connections\":25000},\n      \"fallbacks\":{",
+            "\n      \"admission\":{\"pre_parse_max_connections\":60001,\"routed_max_connections\":60000,\"routed_max_connections_per_source\":128,\"fallback_max_connections\":40000},\n      \"fallbacks\":{",
         );
         assert!(Config::from_slice(configured.as_bytes()).is_err());
     }
